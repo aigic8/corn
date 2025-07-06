@@ -11,22 +11,27 @@ import (
 	"github.com/go-playground/validator/v10"
 )
 
+const DEFAULT_LOGS_DIR = ".corn/logs"
+
 var validate *validator.Validate
 
 type (
 	Config struct {
-		Jobs map[string]Job `yaml:"jobs" validate:"required,min=1"`
+		Jobs    map[string]Job `yaml:"jobs" validate:"required,min=1"`
+		LogsDir string         `yaml:"logsDir"`
 	}
 
 	Job struct {
-		Schedules []string `yaml:"schedules" validate:"required"`
-		Command   string   `yaml:"command" validate:"required"`
+		Schedules       []string `yaml:"schedules" validate:"required"`
+		Command         string   `yaml:"command" validate:"required"`
+		OnlyLogOnFail   bool     `yaml:"onlyLogOnFail"`
+		IgnoreStdErrLog bool     `yaml:"ignoreStdErrLog"`
 	}
 )
 
 var CONFIG_PATHS = []string{
-	".config/corn.yaml",
-	".config/corn.yml",
+	".config/corn/corn.yaml",
+	".config/corn/corn.yml",
 }
 
 func ParseConfig(configPath string) (*Config, error) {
@@ -39,6 +44,16 @@ func ParseConfig(configPath string) (*Config, error) {
 	if err := yaml.Unmarshal(configBytes, &config); err != nil {
 		return nil, fmt.Errorf("parsing config file: %w", err)
 	}
+
+	// set the default logs dir if not exists
+	if config.LogsDir == "" {
+		homePaths, err := common.FromHome(DEFAULT_LOGS_DIR)
+		if err != nil {
+			return nil, fmt.Errorf("getting home directory: %w", err)
+		}
+		config.LogsDir = homePaths[0]
+	}
+
 	return &config, nil
 }
 

@@ -3,9 +3,9 @@ package main
 import (
 	"fmt"
 
-	"github.com/aigic8/corn/lib/common"
 	"github.com/aigic8/corn/lib/config"
-	"github.com/go-co-op/gocron/v2"
+	"github.com/aigic8/corn/lib/logs"
+	"github.com/aigic8/corn/lib/runner"
 	"github.com/go-playground/validator/v10"
 )
 
@@ -21,20 +21,17 @@ func main() {
 		panic(err)
 	}
 
-	s, err := gocron.NewScheduler()
+	logger, err := logs.NewLogger(c.LogsDir)
 	if err != nil {
-		panic(fmt.Errorf("creating a new scheduler: %w", err))
+		panic(fmt.Errorf("creating a new logger: %w", err))
 	}
 
-	for _, job := range c.Jobs {
-		for _, schedule := range job.Schedules {
-			s.NewJob(gocron.CronJob(schedule, true), gocron.NewTask(func() {
-				cmd, args := common.SeparateCommandFromArgs(job.Command)
-				if err := common.RunCommand(cmd, args); err != nil {
-					// TODO: error handling
-					panic(err)
-				}
-			}))
-		}
+	r, err := runner.NewRunner(c, logger)
+	if err != nil {
+		panic(fmt.Errorf("failed to create a new runner: %w", err))
+	}
+
+	if err := r.ScheduleJobs(); err != nil {
+		panic(fmt.Errorf("failed to schedule jobs: %w", err))
 	}
 }

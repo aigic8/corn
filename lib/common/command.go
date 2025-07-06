@@ -2,24 +2,27 @@ package common
 
 import (
 	"fmt"
-	"log"
-	"os"
+	"io"
 	"os/exec"
 	"strings"
 )
 
-func RunCommand(command string, args []string) error {
-	cmd := exec.Command(command, args...)
+type RunCommandOpts struct {
+	Cmd    string
+	Args   []string
+	Stdout io.Writer
+	Stderr io.Writer
+}
 
-	// TODO: handle stdout and stderr better
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+func RunCommand(o *RunCommandOpts) error {
+	cmd := exec.Command(o.Cmd, o.Args...)
+
+	cmd.Stdout = o.Stdout
+	cmd.Stderr = o.Stderr
 
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("starting command: %w", err)
 	}
-
-	log.Printf("command '%s' started", JoinCommandParts(command, args))
 
 	if err := cmd.Wait(); err != nil {
 		return fmt.Errorf("command exited with error: %w", err)
