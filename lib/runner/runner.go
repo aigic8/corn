@@ -3,11 +3,14 @@ package runner
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/aigic8/corn/lib/common"
 	"github.com/aigic8/corn/lib/config"
 	"github.com/aigic8/corn/lib/logs"
+	"github.com/aigic8/corn/lib/notif"
 	"github.com/go-co-op/gocron/v2"
+	"github.com/nikoksr/notify"
 )
 
 type (
@@ -15,6 +18,7 @@ type (
 		L         *logs.Logger
 		Config    *config.Config
 		Scheduler gocron.Scheduler
+		Notif     *notif.Notif
 	}
 
 	StringWriter interface {
@@ -28,7 +32,14 @@ func NewRunner(c *config.Config, l *logs.Logger) (*Runner, error) {
 	if err != nil {
 		return nil, fmt.Errorf("creating a new scheduler: %w", err)
 	}
-	return &Runner{L: l, Config: c, Scheduler: s}, nil
+
+	notifiers, err := CompileNotifServices(c.Notifiers)
+	if err != nil {
+		return nil, fmt.Errorf("compiling notifiers: %w", err)
+	}
+	n := notif.NewNotif(time.Duration(c.NotifyTimeoutMs)*time.Millisecond, notifiers, c.DisableNotifications)
+
+	return &Runner{L: l, Config: c, Scheduler: s, Notif: n}, nil
 }
 
 func (r *Runner) ScheduleJobs() error {
@@ -59,7 +70,7 @@ func (r *Runner) JobFunc(jobName string) func() {
 
 		stdoutWriter := &strings.Builder{}
 		var stderrWriter StringWriter
-		if !job.IgnoreStdErrLog {
+		if !job.IgnoreStderrLog {
 			stderrWriter = &strings.Builder{}
 		} else {
 			stderrWriter = &common.StringNullWriter{}
@@ -74,15 +85,87 @@ func (r *Runner) JobFunc(jobName string) func() {
 		})
 		if err != nil {
 			failed = true
-			// TODO: notify
-			r.L.L.Err(fmt.Errorf("running job '%s': %w", jobName, err)).Msg("Running job failed")
+			r.L.L.Err(fmt.Errorf("running job '%s': %w", jobName, err)).Msg("running job failed")
 		}
+
+		// handle logging
 		if !job.OnlyLogOnFail || (job.OnlyLogOnFail && failed) {
 			log := jobLogger.Err(err).Str("stdout", stdoutWriter.String()).Bool("failed", failed)
-			if !job.IgnoreStdErrLog {
+			if !job.IgnoreStderrLog {
 				log.Str("stderr", stderrWriter.String())
 			}
 			log.Msgf("job '%s' executed", jobName)
 		}
+
+		// handle notification
+		if !job.OnlyNotifyOnFail || (job.OnlyNotifyOnFail && failed) {
+			// FIXME: do not error and send notification if the user has notifications disabled
+			notifierName, notifierErr := r.GetNotifierForJob(jobName, true)
+			if notifierErr != nil {
+				r.L.L.Err(fmt.Errorf("getting notifier for job '%s': %w", jobName, err)).Msg("getting notifier failed")
+				return
+			}
+			send := r.Notif.UseService(notifierName)
+			if failed {
+				err = send(fmt.Sprintf("job '%s' failed", jobName), fmt.Sprintf("error: %s\nstdout: %s", err.Error(), stdoutWriter.String()))
+				if err != nil {
+					r.L.L.Err(fmt.Errorf("sending notification: %w", jobName, err)).Msg("sending notification failed")
+				}
+			} else {
+				send(fmt.Sprintf("job '%s' executed", jobName), "Job executed successfully")
+				if err != nil {
+					r.L.L.Err(fmt.Errorf("sending notification: %w", jobName, err)).Msg("sending notification failed")
+				}
+			}
+		}
 	}
+}
+
+func (r *Runner) GetNotifierForJob(jobName string, failure bool) (string, error) {
+	job := r.Config.Jobs[jobName]
+	if failure {
+		if job.FailNotifier != "" {
+			return job.FailNotifier, nil
+		} else if r.Config.DefaultFailNotifier != "" {
+			return r.Config.DefaultFailNotifier, nil
+		}
+	}
+	if job.Notifier != "" {
+		return job.Notifier, nil
+	} else if r.Config.DefaultNotifier != "" {
+		return r.Config.DefaultNotifier, nil
+	}
+
+	return "", fmt.Errorf("no notifier found for job '%s'", jobName)
+}
+
+// helper function to convert config notification services into application notifiers
+func CompileNotifServices(services map[string]config.NotifyService) (map[string][]notify.Notifier, error) {
+	res := make(map[string][]notify.Notifier, len(services))
+	for serviceName, service := range services {
+		res[serviceName] = []notify.Notifier{}
+		if service.Telegram != nil {
+			for _, telegramApp := range service.Telegram {
+				notifier, err := notif.NewTelegramNotifier(telegramApp.Token, telegramApp.Receivers...)
+				if err != nil {
+					return res, fmt.Errorf("creating telegram notifier for service '%s': %w", serviceName, err)
+				}
+				res[serviceName] = append(res[serviceName], notifier)
+			}
+		}
+		if service.Discord != nil {
+			for _, discordApp := range service.Discord {
+				notifier, err := notif.NewDiscordNotifier(&notif.DiscordNotifierOpts{
+					BotToken:    discordApp.BotToken,
+					OAuth2Token: discordApp.OAuth2Token,
+					ChanelIDs:   discordApp.Channels,
+				})
+				if err != nil {
+					return res, fmt.Errorf("creating discord notifier for service '%s': %w", serviceName, err)
+				}
+				res[serviceName] = append(res[serviceName], notifier)
+			}
+		}
+	}
+	return res, nil
 }

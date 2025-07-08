@@ -12,20 +12,43 @@ import (
 )
 
 const DEFAULT_LOGS_DIR = ".corn/logs"
-
-var validate *validator.Validate
+const DEFAULT_NOTIFY_TIMEOUT = 10000
 
 type (
 	Config struct {
-		Jobs    map[string]Job `yaml:"jobs" validate:"required,min=1"`
-		LogsDir string         `yaml:"logsDir"`
+		Jobs                 map[string]Job           `yaml:"jobs" validate:"required,min=1"`
+		Notifiers            map[string]NotifyService `yaml:"notifiers"`
+		LogsDir              string                   `yaml:"logsDir"`
+		NotifyTimeoutMs      int                      `yaml:"notifyTimeoutMs"`
+		DefaultFailNotifier  string                   `yaml:"defaultFailNotifier"`
+		DefaultNotifier      string                   `yaml:"defaultNotifier"`
+		DisableNotifications bool                     `yaml:"disableNotifications"`
+	}
+
+	NotifyService struct {
+		Telegram []TelegramNotifyService `yaml:"telegram"`
+		Discord  []DiscordNotifyService  `yaml:"discord"`
+	}
+
+	TelegramNotifyService struct {
+		Token     string  `yaml:"token" validate:"required"`
+		Receivers []int64 `yaml:"receivers" validate:"required,min=1"`
+	}
+
+	DiscordNotifyService struct {
+		OAuth2Token string   `yaml:"oAuth2Token"`
+		BotToken    string   `yaml:"botToken"`
+		Channels    []string `yaml:"channels" validate:"required,min=1"`
 	}
 
 	Job struct {
-		Schedules       []string `yaml:"schedules" validate:"required"`
-		Command         string   `yaml:"command" validate:"required"`
-		OnlyLogOnFail   bool     `yaml:"onlyLogOnFail"`
-		IgnoreStdErrLog bool     `yaml:"ignoreStdErrLog"`
+		Schedules        []string `yaml:"schedules" validate:"required"`
+		Command          string   `yaml:"command" validate:"required"`
+		OnlyLogOnFail    bool     `yaml:"onlyLogOnFail"`
+		IgnoreStderrLog  bool     `yaml:"ignoreStdErrLog"`
+		OnlyNotifyOnFail bool     `yaml:"onlyNotifyOnFail"`
+		FailNotifier     string   `yaml:"failNotifier"`
+		Notifier         string   `yaml:"notifier"`
 	}
 )
 
@@ -45,13 +68,16 @@ func ParseConfig(configPath string) (*Config, error) {
 		return nil, fmt.Errorf("parsing config file: %w", err)
 	}
 
-	// set the default logs dir if not exists
+	// set the default values if not exist
 	if config.LogsDir == "" {
 		homePaths, err := common.FromHome(DEFAULT_LOGS_DIR)
 		if err != nil {
 			return nil, fmt.Errorf("getting home directory: %w", err)
 		}
 		config.LogsDir = homePaths[0]
+	}
+	if config.NotifyTimeoutMs == 0 {
+		config.NotifyTimeoutMs = DEFAULT_NOTIFY_TIMEOUT
 	}
 
 	return &config, nil

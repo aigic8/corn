@@ -18,14 +18,16 @@ type (
 )
 
 const LOG_FILE_NAME = "corn.jsonl"
+const LOG_DIR_PERM = 0750
+const LOG_FILE_PERM = 0640
 
 func NewLogger(logBaseDir string) (*Logger, error) {
-	if err := common.MakeDirAllIfNotExist(logBaseDir, 0750); err != nil {
+	if err := common.MakeDirAllIfNotExist(logBaseDir, LOG_DIR_PERM); err != nil {
 		return nil, fmt.Errorf("creating log base directory (%s): %w", logBaseDir, err)
 	}
 
 	logFilePath := path.Join(logBaseDir, LOG_FILE_NAME)
-	logFile, err := os.OpenFile(logFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0640)
+	logFile, err := os.OpenFile(logFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, LOG_FILE_PERM)
 	if err != nil {
 		return nil, fmt.Errorf("creating log file (%s): %w", logFilePath, err)
 	}
@@ -39,11 +41,11 @@ func NewLogger(logBaseDir string) (*Logger, error) {
 func (l *Logger) NewJobLogger(jobName string) (zerolog.Logger, func() error, error) {
 	logsFilePath := path.Join(l.LogsDir, "/jobs/", jobName+".jsonl")
 	baseDir := path.Dir(logsFilePath)
-	if err := common.MakeDirAllIfNotExist(baseDir, 0750); err != nil {
+	if err := common.MakeDirAllIfNotExist(baseDir, LOG_DIR_PERM); err != nil {
 		return l.L, nil, fmt.Errorf("creating jobs base directory (%s): %w", baseDir, err)
 	}
 
-	logsFile, err := os.OpenFile(logsFilePath, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0640)
+	logsFile, err := os.OpenFile(logsFilePath, os.O_APPEND|os.O_WRONLY|os.O_CREATE, LOG_FILE_PERM)
 	close := func() error {
 		return logsFile.Close()
 	}
