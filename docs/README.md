@@ -7,14 +7,14 @@ Corn is a cron job tool with built in logging and notification system.
 ### Feature Sets
 
 - **Basics**
-  - [ ] Setting command executer (zsh/fish/bash)
-  - [ ] Setting env vars and env files
   - [x] Test a single cron job
-  - [ ] Set timezone in config
+  - [x] Set timezone in config
 - **Deployable**
   - [ ] Add Github releases
   - [ ] Docker image & CI/CD pipeline
 - **Later**
+  - [ ] Setting command executer (zsh/fish/bash)
+  - [ ] Setting env vars and env files
   - [ ] Logging level support from config
   - [ ] Systemd file for running the app in background and starting on power on
   - [ ] Notification in email

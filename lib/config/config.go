@@ -23,6 +23,7 @@ type (
 		DefaultFailNotifier  string                   `yaml:"defaultFailNotifier"`
 		DefaultNotifier      string                   `yaml:"defaultNotifier"`
 		DisableNotifications bool                     `yaml:"disableNotifications"`
+		Timezone             string                   `yaml:"timezone"`
 	}
 
 	NotifyService struct {

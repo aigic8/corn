@@ -49,7 +49,6 @@ func (r *Runner) ScheduleJobs() error {
 			if err != nil {
 				return fmt.Errorf("scheduling job '%s' with schedule '%s': %w", jobName, schedule, err)
 			}
-			r.JobFunc(jobName)()
 		}
 	}
 	r.L.L.Debug().Msg("scheduling jobs were successful")
