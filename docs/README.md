@@ -9,7 +9,7 @@ Corn is a cron job tool with built in logging and notification system.
 - **Basics**
   - [ ] Setting command executer (zsh/fish/bash)
   - [ ] Setting env vars and env files
-  - [ ] Test a single cron job
+  - [x] Test a single cron job
   - [ ] Set timezone in config
 - **Deployable**
   - [ ] Add Github releases
@@ -28,3 +28,5 @@ Corn is a cron job tool with built in logging and notification system.
 ### Enhancements
 
 - [ ] Add Testing
+- [ ] Add logging to terminal (instead of writing to file) for testing jobs (with a flag) and in config
+  - Pretty logging should also be an option for this case

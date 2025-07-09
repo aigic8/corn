@@ -58,7 +58,11 @@ func (r *Runner) ScheduleJobs() error {
 
 func (r *Runner) JobFunc(jobName string) func() {
 	return func() {
-		job := r.Config.Jobs[jobName]
+		job, exists := r.Config.Jobs[jobName]
+		if !exists {
+			r.L.L.Err(fmt.Errorf("job with name '%s' does not exist", jobName)).Msg("failed to find the job")
+			return
+		}
 
 		jobLogger, closeJobLogger, err := r.L.NewJobLogger(jobName)
 		if err != nil {
