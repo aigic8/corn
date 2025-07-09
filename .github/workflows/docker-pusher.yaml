@@ -1,5 +1,7 @@
 name: docker-pusher
-
+permissions:
+  contents: read
+  packages: write
 on:
   push:
     tags:
