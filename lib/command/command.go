@@ -1,30 +1,19 @@
-package common
+package command
 
 import (
 	"context"
 	"fmt"
 	"io"
-	"strings"
 	"time"
 
 	"mvdan.cc/sh/v3/interp"
-	"mvdan.cc/sh/v3/syntax"
 )
 
-type ParsedCmd = syntax.File
-
 type RunCommandOpts struct {
-	Cmd     *ParsedCmd
+	Cmd     *ParsedCommand
 	Stdout  io.Writer
 	Stderr  io.Writer
 	Timeout time.Duration
-}
-
-func ParseCommand(cmd string) (*ParsedCmd, error) {
-	parser := syntax.NewParser()
-	// TODO: maybe the program (the second parameter) is the shell runner (bash/zsh/fish)?
-	// check if it is and add the custom shell functionality
-	return parser.Parse(strings.NewReader(cmd), "")
 }
 
 func RunCommand(o *RunCommandOpts) error {
@@ -40,8 +29,4 @@ func RunCommand(o *RunCommandOpts) error {
 	}
 
 	return nil
-}
-
-func JoinCommandParts(command string, args []string) string {
-	return command + " " + strings.Join(args, " ")
 }

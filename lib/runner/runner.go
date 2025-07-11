@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/aigic8/corn/lib/command"
 	"github.com/aigic8/corn/lib/common"
 	"github.com/aigic8/corn/lib/config"
 	"github.com/aigic8/corn/lib/logs"
@@ -19,6 +20,7 @@ type (
 		Config    *config.Config
 		Scheduler gocron.Scheduler
 		Notif     *notif.Notif
+		p         *command.CommandParser
 	}
 
 	StringWriter interface {
@@ -39,7 +41,7 @@ func NewRunner(c *config.Config, l *logs.Logger) (*Runner, error) {
 	}
 	n := notif.NewNotif(time.Duration(c.NotifyTimeoutMs)*time.Millisecond, notifiers, c.DisableNotifications)
 
-	return &Runner{L: l, Config: c, Scheduler: s, Notif: n}, nil
+	return &Runner{L: l, Config: c, Scheduler: s, Notif: n, p: command.NewCommandParser()}, nil
 }
 
 func (r *Runner) ScheduleJobs() error {
@@ -69,7 +71,14 @@ func (r *Runner) JobFunc(jobName string) func() {
 			return
 		}
 		defer closeJobLogger()
-		cmd, args := common.SeparateCommandFromArgs(job.Command)
+
+		parsed, err := r.p.Parse(strings.NewReader(job.Command))
+		if err != nil {
+			r.L.L.Err(fmt.Errorf("parsing command for job '%s': %w", jobName, err)).Msg("failed to parse job")
+			return
+		}
+
+		// FIXME: notify the user if the command fail before running (remove all the logging and returns before this comment)
 
 		stdoutWriter := &strings.Builder{}
 		var stderrWriter StringWriter
@@ -80,12 +89,8 @@ func (r *Runner) JobFunc(jobName string) func() {
 		}
 
 		failed := false
-		err = common.RunCommand(&common.RunCommandOpts{
-			Cmd:    cmd,
-			Args:   args,
-			Stdout: stdoutWriter,
-			Stderr: stderrWriter,
-		})
+		// FIXME: add timeout to the config and use the time out in the settings
+		err = command.RunCommand(&command.RunCommandOpts{Cmd: parsed, Stdout: stdoutWriter, Stderr: stderrWriter, Timeout: 20 * time.Second})
 		if err != nil {
 			failed = true
 			r.L.L.Err(fmt.Errorf("running job '%s': %w", jobName, err)).Msg("running job failed")
@@ -103,7 +108,7 @@ func (r *Runner) JobFunc(jobName string) func() {
 		// handle notification
 		if !job.OnlyNotifyOnFail || (job.OnlyNotifyOnFail && failed) {
 			// FIXME: do not error and send notification if the user has notifications disabled
-			notifierName, notifierErr := r.GetNotifierForJob(jobName, true)
+			notifierName, notifierErr := r.getNotifierForJob(jobName, true)
 			if notifierErr != nil {
 				r.L.L.Err(fmt.Errorf("getting notifier for job '%s': %w", jobName, err)).Msg("getting notifier failed")
 				return
@@ -124,7 +129,7 @@ func (r *Runner) JobFunc(jobName string) func() {
 	}
 }
 
-func (r *Runner) GetNotifierForJob(jobName string, failure bool) (string, error) {
+func (r *Runner) getNotifierForJob(jobName string, failure bool) (string, error) {
 	job := r.Config.Jobs[jobName]
 	if failure {
 		if job.FailNotifier != "" {
