@@ -89,8 +89,12 @@ func (r *Runner) JobFunc(jobName string) func() {
 		}
 
 		failed := false
-		// FIXME: add timeout to the config and use the time out in the settings
-		err = command.RunCommand(&command.RunCommandOpts{Cmd: parsed, Stdout: stdoutWriter, Stderr: stderrWriter, Timeout: 20 * time.Second})
+		err = command.RunCommand(&command.RunCommandOpts{
+			Cmd:     parsed,
+			Stdout:  stdoutWriter,
+			Stderr:  stderrWriter,
+			Timeout: r.getTimeoutForJob(jobName),
+		})
 		if err != nil {
 			failed = true
 			r.L.L.Err(fmt.Errorf("running job '%s': %w", jobName, err)).Msg("running job failed")
@@ -145,6 +149,20 @@ func (r *Runner) getNotifierForJob(jobName string, failure bool) (string, error)
 	}
 
 	return "", fmt.Errorf("no notifier found for job '%s'", jobName)
+}
+
+// returns the timeout for the job based on the default timeout
+// and the job's timeout.
+// If not timeout was found, it would return 0 time duration
+func (r *Runner) getTimeoutForJob(jobName string) time.Duration {
+	jobTimeout := r.Config.Jobs[jobName].TimeoutS
+	if jobTimeout != 0 {
+		return time.Duration(jobTimeout) * time.Second
+	}
+	if r.Config.DefaultTimeoutS != 0 {
+		return time.Duration(r.Config.DefaultTimeoutS) * time.Second
+	}
+	return 0
 }
 
 // helper function to convert config notification services into application notifiers

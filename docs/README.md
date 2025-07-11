@@ -13,14 +13,14 @@ Corn is a cron job tool with built in logging and notification system.
   - [x] Add Github releases
   - [x] Docker image & CI/CD pipeline
 - **Final Features Before Beta**
-  - [ ] Add timeout to the config and use the time out in the settings
+  - [x] Add timeout to the config and use the time out in the settings
   - [ ] Setting env vars and env files
   - [ ] Add remote servers SSH support for cron jobs
   - [ ] Add Installation script
+  - [ ] Add Failure strategies (from [jobber](https://github.com/dshearer/jobber))
 - **Later**
   - [ ] Setting command executer (zsh/fish/bash)
   - [ ] Logging level support from config
-  - [ ] Add Failure strategies (from [jobber](https://github.com/dshearer/jobber))
   - [ ] Systemd file for running the app in background and starting on power on
   - [ ] Notification in email
   - [ ] Report (Daily/Weekly/Monthly) on stats (how many jobs has failed/passed)
@@ -41,3 +41,4 @@ Corn is a cron job tool with built in logging and notification system.
 - [ ] Test Discord Notification system
 - [ ] Fix the bug with quoted args in function `SeperateArgsFromCommand`
 - [ ] Notify the user on failure before command running
+- [ ] Add Emojis to notifications

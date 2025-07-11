@@ -22,6 +22,7 @@ type (
 		NotifyTimeoutMs      int                      `yaml:"notifyTimeoutMs"`
 		DefaultFailNotifier  string                   `yaml:"defaultFailNotifier"`
 		DefaultNotifier      string                   `yaml:"defaultNotifier"`
+		DefaultTimeoutS      int                      `yaml:"defaultTimeoutS"`
 		DisableNotifications bool                     `yaml:"disableNotifications"`
 		Timezone             string                   `yaml:"timezone"`
 	}
@@ -50,6 +51,7 @@ type (
 		OnlyNotifyOnFail bool     `yaml:"onlyNotifyOnFail"`
 		FailNotifier     string   `yaml:"failNotifier"`
 		Notifier         string   `yaml:"notifier"`
+		TimeoutS         int      `yaml:"timeoutS"`
 	}
 )
 
