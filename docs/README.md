@@ -14,14 +14,13 @@ Corn is a cron job tool with built in logging and notification system.
   - [x] Docker image & CI/CD pipeline
 - **Final Features Before Beta**
   - [x] Add timeout to the config and use the time out in the settings
-  - [ ] Setting env vars and env files
   - [ ] Add remote servers SSH support for cron jobs
+  - [ ] Systemd file for running the app in background and starting on power on
   - [ ] Add Installation script
   - [ ] Add Failure strategies (from [jobber](https://github.com/dshearer/jobber))
 - **Later**
   - [ ] Setting command executer (zsh/fish/bash)
   - [ ] Logging level support from config
-  - [ ] Systemd file for running the app in background and starting on power on
   - [ ] Notification in email
   - [ ] Report (Daily/Weekly/Monthly) on stats (how many jobs has failed/passed)
   - [ ] CPU/Memory info on each job

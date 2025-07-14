@@ -9,9 +9,11 @@ import (
 	"github.com/rs/zerolog"
 )
 
+type InternalLogger = zerolog.Logger
+
 type (
 	Logger struct {
-		L       zerolog.Logger
+		L       InternalLogger
 		logFile *os.File
 		LogsDir string
 	}

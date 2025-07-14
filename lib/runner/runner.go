@@ -72,14 +72,15 @@ func (r *Runner) JobFunc(jobName string) func() {
 		}
 		defer closeJobLogger()
 
-		parsed, err := r.p.Parse(strings.NewReader(job.Command))
+		notifierName := r.getNotifierForJob(jobName, true)
+		notifFailure := r.failureLogNotifier(jobName, &jobLogger, notifierName)
+
 		if err != nil {
-			r.L.L.Err(fmt.Errorf("parsing command for job '%s': %w", jobName, err)).Msg("failed to parse job")
+			notifFailure(fmt.Errorf("parsing command for job '%s': %w", jobName, err), "failed to parse job")
 			return
 		}
 
-		// FIXME: notify the user if the command fail before running (remove all the logging and returns before this comment)
-
+		parsed, err := r.p.Parse(strings.NewReader(job.Command))
 		stdoutWriter := &strings.Builder{}
 		var stderrWriter StringWriter
 		if !job.IgnoreStderrLog {
@@ -111,12 +112,6 @@ func (r *Runner) JobFunc(jobName string) func() {
 
 		// handle notification
 		if !job.OnlyNotifyOnFail || (job.OnlyNotifyOnFail && failed) {
-			// FIXME: do not error and send notification if the user has notifications disabled
-			notifierName, notifierErr := r.getNotifierForJob(jobName, true)
-			if notifierErr != nil {
-				r.L.L.Err(fmt.Errorf("getting notifier for job '%s': %w", jobName, err)).Msg("getting notifier failed")
-				return
-			}
 			send := r.Notif.UseService(notifierName)
 			if failed {
 				err = send(fmt.Sprintf("job '%s' failed", jobName), fmt.Sprintf("error: %s\nstdout: %s", err.Error(), stdoutWriter.String()))
@@ -133,22 +128,36 @@ func (r *Runner) JobFunc(jobName string) func() {
 	}
 }
 
-func (r *Runner) getNotifierForJob(jobName string, failure bool) (string, error) {
+// logs the error and notifies the user on failure of the job
+func (r *Runner) failureLogNotifier(jobName string, log *logs.InternalLogger, notifServiceName string) func(err error, logMsg string) {
+	if notifServiceName != "" {
+		sendNotification := r.Notif.UseService(notifServiceName)
+		return func(err error, logMsg string) {
+			r.L.L.Err(err).Msg(logMsg)
+			if err = sendNotification(fmt.Sprintf("job '%s' failed", jobName), fmt.Sprintf("error: %s", err.Error())); err != nil {
+				r.L.L.Err(err).Msg("failed sending notification for failure")
+			}
+		}
+	} else {
+		return func(err error, logMsg string) {}
+	}
+}
+
+func (r *Runner) getNotifierForJob(jobName string, failure bool) string {
 	job := r.Config.Jobs[jobName]
 	if failure {
 		if job.FailNotifier != "" {
-			return job.FailNotifier, nil
+			return job.FailNotifier
 		} else if r.Config.DefaultFailNotifier != "" {
-			return r.Config.DefaultFailNotifier, nil
+			return r.Config.DefaultFailNotifier
 		}
 	}
 	if job.Notifier != "" {
-		return job.Notifier, nil
+		return job.Notifier
 	} else if r.Config.DefaultNotifier != "" {
-		return r.Config.DefaultNotifier, nil
+		return r.Config.DefaultNotifier
 	}
-
-	return "", fmt.Errorf("no notifier found for job '%s'", jobName)
+	return ""
 }
 
 // returns the timeout for the job based on the default timeout

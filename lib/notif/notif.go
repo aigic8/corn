@@ -41,8 +41,12 @@ func NewNotif(timeout time.Duration, services map[string][]Notifier, disabled bo
 }
 
 func (n *Notif) UseService(service string) func(subject, text string) error {
-	return func(subject, text string) error {
-		return n.Send(service, subject, text)
+	if service != "" {
+		return func(subject, text string) error {
+			return n.Send(service, subject, text)
+		}
+	} else {
+		return func(subject, text string) error { return nil }
 	}
 }
 
