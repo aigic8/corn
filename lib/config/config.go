@@ -16,8 +16,9 @@ const DEFAULT_NOTIFY_TIMEOUT = 10000
 
 type (
 	Config struct {
-		Jobs                 map[string]Job           `yaml:"jobs" validate:"required,min=1"`
-		Notifiers            map[string]NotifyService `yaml:"notifiers"`
+		Jobs                 map[string]Job           `yaml:"jobs" validate:"required,min=1,dive"`
+		Remotes              map[string]Remote        `yaml:"remotes" validate:"dive"`
+		Notifiers            map[string]NotifyService `yaml:"notifiers" validate:"dive"`
 		LogsDir              string                   `yaml:"logsDir"`
 		NotifyTimeoutMs      int                      `yaml:"notifyTimeoutMs"`
 		DefaultFailNotifier  string                   `yaml:"defaultFailNotifier"`
@@ -30,6 +31,27 @@ type (
 	NotifyService struct {
 		Telegram []TelegramNotifyService `yaml:"telegram"`
 		Discord  []DiscordNotifyService  `yaml:"discord"`
+	}
+
+	Remote struct {
+		Username string      `yaml:"username" validate:"required,min=1"`
+		Address  string      `yaml:"address" validate:"required,min=1"`
+		Port     uint        `yaml:"port" validate:"required"`
+		Auth     *RemoteAuth `yaml:"auth" validate:"required"`
+	}
+
+	RemoteAuth struct {
+		PasswordAuth *PasswordAuth `yaml:"passwordAuth"`
+		KeyAuth      *KeyAuth      `yaml:"keyAuth"`
+	}
+
+	PasswordAuth struct {
+		Password string `yaml:"password" validate:"required"`
+	}
+
+	KeyAuth struct {
+		KeyPath    string `yaml:"keyPath" validate:"required"`
+		Passphrase string `yaml:"passphrase"`
 	}
 
 	TelegramNotifyService struct {
@@ -52,6 +74,7 @@ type (
 		FailNotifier     string   `yaml:"failNotifier"`
 		Notifier         string   `yaml:"notifier"`
 		TimeoutS         int      `yaml:"timeoutS"`
+		RemoteName       string   `yaml:"remoteName"`
 	}
 )
 

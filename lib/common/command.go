@@ -32,13 +32,15 @@ func RunCommand(o *RunCommandOpts) error {
 	if err != nil {
 		return fmt.Errorf("creating a runner: %w", err)
 	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), o.Timeout)
-	defer cancel()
+	ctx := context.Background()
+	var cancel context.CancelFunc
+	if o.Timeout != 0 {
+		ctx, cancel = context.WithTimeout(ctx, o.Timeout)
+		defer cancel()
+	}
 	if err := runner.Run(ctx, o.Cmd); err != nil {
 		return fmt.Errorf("running command: %w", err)
 	}
-
 	return nil
 }
 

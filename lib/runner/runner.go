@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"time"
@@ -35,7 +36,7 @@ func NewRunner(c *config.Config, l *logs.Logger) (*Runner, error) {
 		return nil, fmt.Errorf("creating a new scheduler: %w", err)
 	}
 
-	notifiers, err := CompileNotifServices(c.Notifiers)
+	notifiers, err := CompileNotifServices(c.Notifiers, c.DisableNotifications)
 	if err != nil {
 		return nil, fmt.Errorf("compiling notifiers: %w", err)
 	}
@@ -75,50 +76,21 @@ func (r *Runner) JobFunc(jobName string) func() {
 		notifierName := r.getNotifierForJob(jobName, true)
 		notifFailure := r.failureLogNotifier(jobName, &jobLogger, notifierName)
 
-		if err != nil {
-			notifFailure(fmt.Errorf("parsing command for job '%s': %w", jobName, err), "failed to parse job")
-			return
-		}
-
-		parsed, err := r.p.Parse(strings.NewReader(job.Command))
-		stdoutWriter := &strings.Builder{}
-		var stderrWriter StringWriter
-		if !job.IgnoreStderrLog {
-			stderrWriter = &strings.Builder{}
+		var stdout, stderr string
+		if job.RemoteName == "" {
+			err, stdout, stderr = r.runCommandLocally(jobName)
 		} else {
-			stderrWriter = &common.StringNullWriter{}
+			err, stdout, stderr = r.runCommandRemotely(jobName)
 		}
-
-		failed := false
-		err = command.RunCommand(&command.RunCommandOpts{
-			Cmd:     parsed,
-			Stdout:  stdoutWriter,
-			Stderr:  stderrWriter,
-			Timeout: r.getTimeoutForJob(jobName),
-		})
 		if err != nil {
-			failed = true
-			r.L.L.Err(fmt.Errorf("running job '%s': %w", jobName, err)).Msg("running job failed")
-		}
-
-		// handle logging
-		if !job.OnlyLogOnFail || (job.OnlyLogOnFail && failed) {
-			log := jobLogger.Err(err).Str("stdout", stdoutWriter.String()).Bool("failed", failed)
-			if !job.IgnoreStderrLog {
-				log.Str("stderr", stderrWriter.String())
+			notifFailure(fmt.Errorf("job '%s' failed: %w", jobName, err), fmt.Sprintf("job '%s' failed", jobName), stdout, stderr)
+			return
+		} else {
+			if !job.OnlyLogOnFail {
+				jobLogger.Info().Bool("failed", false).Str("stdout", stdout).Msgf("job '%s' executed", jobName)
 			}
-			log.Msgf("job '%s' executed", jobName)
-		}
-
-		// handle notification
-		if !job.OnlyNotifyOnFail || (job.OnlyNotifyOnFail && failed) {
-			send := r.Notif.UseService(notifierName)
-			if failed {
-				err = send(fmt.Sprintf("job '%s' failed", jobName), fmt.Sprintf("error: %s\nstdout: %s", err.Error(), stdoutWriter.String()))
-				if err != nil {
-					r.L.L.Err(fmt.Errorf("sending notification: %w", jobName, err)).Msg("sending notification failed")
-				}
-			} else {
+			if !job.OnlyNotifyOnFail {
+				send := r.Notif.UseService(r.getNotifierForJob(jobName, false))
 				send(fmt.Sprintf("job '%s' executed", jobName), "Job executed successfully")
 				if err != nil {
 					r.L.L.Err(fmt.Errorf("sending notification: %w", jobName, err)).Msg("sending notification failed")
@@ -129,21 +101,28 @@ func (r *Runner) JobFunc(jobName string) func() {
 }
 
 // logs the error and notifies the user on failure of the job
-func (r *Runner) failureLogNotifier(jobName string, log *logs.InternalLogger, notifServiceName string) func(err error, logMsg string) {
+func (r *Runner) failureLogNotifier(jobName string, log *logs.InternalLogger, notifServiceName string) func(err error, logMsg string, stdout string, stderr string) {
 	if notifServiceName != "" {
 		sendNotification := r.Notif.UseService(notifServiceName)
-		return func(err error, logMsg string) {
-			r.L.L.Err(err).Msg(logMsg)
+		return func(err error, logMsg, stdout, stderr string) {
+			log := log.Err(err).Str("stdout", stdout)
+			if !r.Config.Jobs[jobName].IgnoreStderrLog {
+				log.Str("stderr", stderr)
+			}
+			log.Msg(logMsg)
 			if err = sendNotification(fmt.Sprintf("job '%s' failed", jobName), fmt.Sprintf("error: %s", err.Error())); err != nil {
 				r.L.L.Err(err).Msg("failed sending notification for failure")
 			}
 		}
 	} else {
-		return func(err error, logMsg string) {}
+		return func(err error, logMsg, stdout, stderr string) {}
 	}
 }
 
 func (r *Runner) getNotifierForJob(jobName string, failure bool) string {
+	if r.Config.DisableNotifications {
+		return ""
+	}
 	job := r.Config.Jobs[jobName]
 	if failure {
 		if job.FailNotifier != "" {
@@ -174,8 +153,71 @@ func (r *Runner) getTimeoutForJob(jobName string) time.Duration {
 	return 0
 }
 
+func (r *Runner) runCommandLocally(jobName string) (error, string, string) {
+	cmd := r.Config.Jobs[jobName].Command
+	parsed, err := r.p.Parse(strings.NewReader(cmd))
+	if err != nil {
+		return fmt.Errorf("parsing command: %w", jobName, err), "", ""
+	}
+	stdoutWriter := &strings.Builder{}
+	var stderrWriter StringWriter
+	if !r.Config.Jobs[jobName].IgnoreStderrLog {
+		stderrWriter = &strings.Builder{}
+	} else {
+		stderrWriter = &common.StringNullWriter{}
+	}
+
+	err = command.RunCommand(&command.RunCommandOpts{
+		Cmd:     parsed,
+		Stdout:  stdoutWriter,
+		Stderr:  stderrWriter,
+		Timeout: r.getTimeoutForJob(jobName),
+	})
+	if err != nil {
+		return fmt.Errorf("running command: %w", jobName, err), stdoutWriter.String(), stderrWriter.String()
+	}
+	return nil, stdoutWriter.String(), stderrWriter.String()
+}
+
+func (r *Runner) runCommandRemotely(jobName string) (error, string, string) {
+	remoteName, remote := r.getRemoteForJob(jobName)
+	if remote == nil {
+		return fmt.Errorf("remote '%s' for job '%s' was not found", remoteName, jobName), "", ""
+	}
+
+	client, err := command.LoginToRemote(remote)
+	if err != nil {
+		return fmt.Errorf("logging in to remote '%s': %w", remoteName, err), "", ""
+	}
+
+	timeout := r.getTimeoutForJob(jobName)
+	cmd := r.Config.Jobs[jobName].Command
+	// FIXME: seperate the stderr and stdout
+	var combinedOutput []byte
+	if timeout == 0 {
+		combinedOutput, err = client.Run(cmd)
+	} else {
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		defer cancel()
+		combinedOutput, err = client.RunContext(ctx, cmd)
+	}
+	if err != nil {
+		return fmt.Errorf("running command: %w", err), string(combinedOutput), ""
+	}
+	return nil, string(combinedOutput), ""
+}
+
+func (r *Runner) getRemoteForJob(jobName string) (string, *config.Remote) {
+	remoteName := r.Config.Jobs[jobName].RemoteName
+	remote := r.Config.Remotes[remoteName]
+	return remoteName, &remote
+}
+
 // helper function to convert config notification services into application notifiers
-func CompileNotifServices(services map[string]config.NotifyService) (map[string][]notify.Notifier, error) {
+func CompileNotifServices(services map[string]config.NotifyService, disabled bool) (map[string][]notify.Notifier, error) {
+	if disabled {
+		return map[string][]notify.Notifier{}, nil
+	}
 	res := make(map[string][]notify.Notifier, len(services))
 	for serviceName, service := range services {
 		res[serviceName] = []notify.Notifier{}
