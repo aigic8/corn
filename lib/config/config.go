@@ -11,11 +11,16 @@ import (
 	"github.com/go-playground/validator/v10"
 )
 
+// sqlite db file path, home path should be added later
+const DEFAULT_DB_PATH = ".corn/corn.sqlite"
+
+// logs dir, home path should be added later
 const DEFAULT_LOGS_DIR = ".corn/logs"
 const DEFAULT_NOTIFY_TIMEOUT = 10000
 
 type (
 	Config struct {
+		DbAddr               string                   `yaml:"dbAddr"`
 		Jobs                 map[string]Job           `yaml:"jobs" validate:"required,min=1,dive"`
 		Remotes              map[string]Remote        `yaml:"remotes" validate:"dive"`
 		Notifiers            map[string]NotifyService `yaml:"notifiers" validate:"dive"`
@@ -66,15 +71,29 @@ type (
 	}
 
 	Job struct {
-		Schedules        []string `yaml:"schedules" validate:"required"`
-		Command          string   `yaml:"command" validate:"required"`
-		OnlyLogOnFail    bool     `yaml:"onlyLogOnFail"`
-		IgnoreStderrLog  bool     `yaml:"ignoreStdErrLog"`
-		OnlyNotifyOnFail bool     `yaml:"onlyNotifyOnFail"`
-		FailNotifier     string   `yaml:"failNotifier"`
-		Notifier         string   `yaml:"notifier"`
-		TimeoutS         int      `yaml:"timeoutS"`
-		RemoteName       string   `yaml:"remoteName"`
+		Schedules        []string      `yaml:"schedules" validate:"required"`
+		Command          string        `yaml:"command" validate:"required"`
+		OnlyLogOnFail    bool          `yaml:"onlyLogOnFail"`
+		IgnoreStderrLog  bool          `yaml:"ignoreStdErrLog"`
+		OnlyNotifyOnFail bool          `yaml:"onlyNotifyOnFail"`
+		FailNotifier     string        `yaml:"failNotifier"`
+		Notifier         string        `yaml:"notifier"`
+		TimeoutS         int           `yaml:"timeoutS"`
+		RemoteName       string        `yaml:"remoteName"`
+		FailStrategy     *FailStrategy `yaml:"failStrategy"`
+	}
+
+	FailStrategy struct {
+		Retry *FailStrategyRetry `yaml:"retry"`
+		Halt  *FailStrategyHalt  `yaml:"halt"`
+	}
+
+	FailStrategyRetry struct {
+		MaxRetries  uint `yaml:"maxRetries" validate:"required"`
+		CoolOffSecs uint `yaml:"coolOffSecs"`
+	}
+
+	FailStrategyHalt struct {
 	}
 )
 
@@ -101,6 +120,13 @@ func ParseConfig(configPath string) (*Config, error) {
 			return nil, fmt.Errorf("getting home directory: %w", err)
 		}
 		config.LogsDir = homePaths[0]
+	}
+	if config.DbAddr == "" {
+		homePaths, err := common.FromHome(DEFAULT_DB_PATH)
+		if err != nil {
+			return nil, fmt.Errorf("getting home directory: %w", err)
+		}
+		config.DbAddr = homePaths[0]
 	}
 	if config.NotifyTimeoutMs == 0 {
 		config.NotifyTimeoutMs = DEFAULT_NOTIFY_TIMEOUT

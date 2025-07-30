@@ -14,10 +14,13 @@ Corn is a cron job tool with built in logging and notification system.
   - [x] Docker image & CI/CD pipeline
 - **Final Features Before Beta**
   - [x] Add timeout to the config and use the time out in the settings
-  - [ ] Add remote servers SSH support for cron jobs
+  - [x] Add remote servers SSH support for cron jobs
   - [ ] Systemd file for running the app in background and starting on power on
   - [ ] Add Installation script
-  - [ ] Add Failure strategies (from [jobber](https://github.com/dshearer/jobber))
+  - [x] Add Failure strategies (from [jobber](https://github.com/dshearer/jobber))
+    - `retry:` retry either instantly or with timing between them
+    - `halt:` remove the job from schedules until it is fixed and notify the user
+    - `continue:` DEFAULT option, continue writing commands like before
 - **Later**
   - [ ] Setting command executer (zsh/fish/bash)
   - [ ] Logging level support from config
@@ -28,6 +31,8 @@ Corn is a cron job tool with built in logging and notification system.
   - [ ] Different Job intervals from [gocron](https://github.com/go-co-op/gocron)
   - [ ] Add landing page
   - [ ] Auto-Log removal after some time (with config option to set the time interval)
+  - [ ] Add an option to reload the config file
+  - [ ] Add support for remote sqlite files
 
 ### Enhancements
 
@@ -38,6 +43,11 @@ Corn is a cron job tool with built in logging and notification system.
 - [ ] Add support for multi-step docker image
 - [ ] Add docs and clean the github page
 - [ ] Test Discord Notification system
-- [ ] Fix the bug with quoted args in function `SeperateArgsFromCommand`
-- [ ] Notify the user on failure before command running
+- [x] Fix the bug with quoted args in function `SeperateArgsFromCommand`
+- [x] Notify the user on failure before command running
 - [ ] Add Emojis to notifications
+- [ ] In config get all the paths relative to the config file
+- [ ] Add an CLI option to validate the config file
+- [ ] Add comments to config options
+- [ ] Test retry count
+- [ ] Test multiline commands using SSH

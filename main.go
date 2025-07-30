@@ -2,9 +2,12 @@ package main
 
 import (
 	"fmt"
+	"path"
 	"time"
 	_ "time/tzdata"
 
+	"github.com/aigic8/corn/internal/db"
+	"github.com/aigic8/corn/lib/common"
 	"github.com/aigic8/corn/lib/config"
 	"github.com/aigic8/corn/lib/logs"
 	"github.com/aigic8/corn/lib/runner"
@@ -54,13 +57,25 @@ func main() {
 		logger.L.Debug().Msgf("set timezone to '%s'", c.Timezone)
 	}
 
-	r, err := runner.NewRunner(c, logger)
+	// TODO: check if the path of the db is a file
+	dbDir := path.Dir(c.DbAddr)
+	if err = common.MakeDirAllIfNotExist(dbDir, 0750); err != nil {
+		panic(fmt.Sprintf("creating directory '%s' for database: %w", err))
+	}
+	logger.L.Debug().Msgf("created directory '%s' for db", dbDir)
+
+	db, err := db.NewDb(c.DbAddr)
+	if err != nil {
+		panic(fmt.Sprintf("creating new db with address '%s': %w", c.DbAddr, err))
+	}
+
+	r, err := runner.NewRunner(c, logger, db)
 	if err != nil {
 		panic(fmt.Errorf("failed to create a new runner: %w", err))
 	}
 
 	if args.Test != nil {
-		r.JobFunc(args.Test.Job)()
+		r.JobFunc(args.Test.Job, true)()
 	} else {
 		if err := r.ScheduleJobs(); err != nil {
 			panic(fmt.Errorf("failed to schedule jobs: %w", err))

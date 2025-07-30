@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/aigic8/corn/internal/db"
 	"github.com/aigic8/corn/lib/command"
 	"github.com/aigic8/corn/lib/common"
 	"github.com/aigic8/corn/lib/config"
@@ -15,6 +16,7 @@ import (
 	"github.com/nikoksr/notify"
 )
 
+type FailureNotifier = func(err error, logMsg string, stdout string, stderr string)
 type (
 	Runner struct {
 		L         *logs.Logger
@@ -22,6 +24,7 @@ type (
 		Scheduler gocron.Scheduler
 		Notif     *notif.Notif
 		p         *command.CommandParser
+		db        *db.Db
 	}
 
 	StringWriter interface {
@@ -30,7 +33,7 @@ type (
 	}
 )
 
-func NewRunner(c *config.Config, l *logs.Logger) (*Runner, error) {
+func NewRunner(c *config.Config, l *logs.Logger, db *db.Db) (*Runner, error) {
 	s, err := gocron.NewScheduler()
 	if err != nil {
 		return nil, fmt.Errorf("creating a new scheduler: %w", err)
@@ -42,13 +45,13 @@ func NewRunner(c *config.Config, l *logs.Logger) (*Runner, error) {
 	}
 	n := notif.NewNotif(time.Duration(c.NotifyTimeoutMs)*time.Millisecond, notifiers, c.DisableNotifications)
 
-	return &Runner{L: l, Config: c, Scheduler: s, Notif: n, p: command.NewCommandParser()}, nil
+	return &Runner{L: l, Config: c, Scheduler: s, Notif: n, p: command.NewCommandParser(), db: db}, nil
 }
 
 func (r *Runner) ScheduleJobs() error {
 	for jobName, job := range r.Config.Jobs {
 		for _, schedule := range job.Schedules {
-			_, err := r.Scheduler.NewJob(gocron.CronJob(schedule, true), gocron.NewTask(r.JobFunc(jobName)))
+			_, err := r.Scheduler.NewJob(gocron.CronJob(schedule, true), gocron.NewTask(r.JobFunc(jobName, false)))
 			if err != nil {
 				return fmt.Errorf("scheduling job '%s' with schedule '%s': %w", jobName, schedule, err)
 			}
@@ -58,50 +61,122 @@ func (r *Runner) ScheduleJobs() error {
 	return nil
 }
 
-func (r *Runner) JobFunc(jobName string) func() {
-	return func() {
-		job, exists := r.Config.Jobs[jobName]
-		if !exists {
-			r.L.L.Err(fmt.Errorf("job with name '%s' does not exist", jobName)).Msg("failed to find the job")
-			return
-		}
+func (r *Runner) JobFunc(jobName string, test bool) func() {
+	failStrategy := r.Config.Jobs[jobName].FailStrategy
+	if !test && failStrategy.Retry != nil {
+		return r.retryJobFunc(jobName, failStrategy.Retry)
+	} else if !test && failStrategy.Halt != nil {
+		r.L.L.Err(fmt.Errorf("fail strategy halt is not yet implemented (job '%s')", jobName)).Msg("fail strategy halt not implemented")
+		return r.normalJobFunc(jobName)
+	} else {
+		// default fail strategy is continue
+		return r.normalJobFunc(jobName)
+	}
+}
 
+func (r *Runner) normalJobFunc(jobName string) func() {
+	return func() {
 		jobLogger, closeJobLogger, err := r.L.NewJobLogger(jobName)
 		if err != nil {
-			r.L.L.Err(fmt.Errorf("creating job logger for job '%s': %w", jobName, err)).Msg("failed to create job logger")
-			return
+			err := fmt.Errorf("creating job logger for job '%s': %w", jobName, err)
+			r.L.L.Err(err).Msg("failed to create job logger")
+		}
+		defer closeJobLogger()
+
+		notifierName := r.getNotifierForJob(jobName, true)
+		notifFailure := r.failureLogNotifier(jobName, &jobLogger, notifierName)
+		r.runJob(jobName, notifFailure, &jobLogger)
+	}
+}
+
+func (r *Runner) retryJobFunc(jobName string, retry *config.FailStrategyRetry) func() {
+	return func() {
+		jobLogger, closeJobLogger, err := r.L.NewJobLogger(jobName)
+		if err != nil {
+			err := fmt.Errorf("creating job logger for job '%s': %w", jobName, err)
+			r.L.L.Err(err).Msg("failed to create job logger")
 		}
 		defer closeJobLogger()
 
 		notifierName := r.getNotifierForJob(jobName, true)
 		notifFailure := r.failureLogNotifier(jobName, &jobLogger, notifierName)
 
-		var stdout, stderr string
-		if job.RemoteName == "" {
-			err, stdout, stderr = r.runCommandLocally(jobName)
-		} else {
-			err, stdout, stderr = r.runCommandRemotely(jobName)
-		}
+		var retriesCount uint = 0
+		retriesCount, err = r.db.Retry.GetRetryCount(jobName)
 		if err != nil {
-			notifFailure(fmt.Errorf("job '%s' failed: %w", jobName, err), fmt.Sprintf("job '%s' failed", jobName), stdout, stderr)
+			notifFailure(fmt.Errorf("getting number of retries for job '%s': %w", jobName, err), "could not get number of retries", "", "")
+			return
+		}
+
+		if retriesCount+1 >= retry.MaxRetries {
+			if err = r.db.Retry.UpsertRetries(jobName, 0); err != nil {
+				notifFailure(fmt.Errorf("upserting retry count for job '%s': %w", jobName, err), "could not set retry count", "", "")
+				return
+			}
 			return
 		} else {
-			if !job.OnlyLogOnFail {
-				jobLogger.Info().Bool("failed", false).Str("stdout", stdout).Msgf("job '%s' executed", jobName)
+			if err = r.db.Retry.UpsertRetries(jobName, retriesCount+1); err != nil {
+				notifFailure(fmt.Errorf("upserting retry count for job '%s': %w", jobName, err), "could not set retry count", "", "")
+				return
 			}
-			if !job.OnlyNotifyOnFail {
-				send := r.Notif.UseService(r.getNotifierForJob(jobName, false))
-				send(fmt.Sprintf("job '%s' executed", jobName), "Job executed successfully")
-				if err != nil {
-					r.L.L.Err(fmt.Errorf("sending notification: %w", jobName, err)).Msg("sending notification failed")
+			if err = r.runJob(jobName, notifFailure, &jobLogger); err != nil {
+				nextTime := gocron.OneTimeJobStartImmediately()
+				if retry.CoolOffSecs != 0 {
+					timeVal := time.Now().Add(time.Duration(retry.CoolOffSecs) * time.Second)
+					nextTime = gocron.OneTimeJobStartDateTime(timeVal)
+				}
+
+				r.Scheduler.NewJob(
+					gocron.OneTimeJob(nextTime),
+					gocron.NewTask(r.JobFunc(jobName, false)),
+				)
+			} else {
+				if err = r.db.Retry.UpsertRetries(jobName, 0); err != nil {
+					notifFailure(fmt.Errorf("upserting retry count for job '%s': %w", jobName, err), "could not set retry count", "", "")
+					return
 				}
 			}
 		}
 	}
+
+}
+
+func (r *Runner) runJob(jobName string, notifFailure FailureNotifier, jobLogger *logs.InternalLogger) error {
+	job, exists := r.Config.Jobs[jobName]
+	if !exists {
+		err := fmt.Errorf("job with name '%s' does not exist", jobName)
+		r.L.L.Err(err).Msg("failed to find the job")
+		return err
+	}
+
+	var stdout, stderr string
+	var err error
+	if job.RemoteName == "" {
+		err, stdout, stderr = r.runCommandLocally(jobName)
+	} else {
+		err, stdout, stderr = r.runCommandRemotely(jobName)
+	}
+	if err != nil {
+		notifFailure(fmt.Errorf("job '%s' failed: %w", jobName, err), fmt.Sprintf("job '%s' failed", jobName), stdout, stderr)
+		return err
+	} else {
+		if !job.OnlyLogOnFail {
+			jobLogger.Info().Bool("failed", false).Str("stdout", stdout).Msgf("job '%s' executed", jobName)
+		}
+		if !job.OnlyNotifyOnFail {
+			send := r.Notif.UseService(r.getNotifierForJob(jobName, false))
+			send(fmt.Sprintf("job '%s' executed", jobName), "Job executed successfully")
+			if err != nil {
+				r.L.L.Err(fmt.Errorf("sending notification: %w", jobName, err)).Msg("sending notification failed")
+			}
+		}
+	}
+
+	return nil
 }
 
 // logs the error and notifies the user on failure of the job
-func (r *Runner) failureLogNotifier(jobName string, log *logs.InternalLogger, notifServiceName string) func(err error, logMsg string, stdout string, stderr string) {
+func (r *Runner) failureLogNotifier(jobName string, log *logs.InternalLogger, notifServiceName string) FailureNotifier {
 	if notifServiceName != "" {
 		sendNotification := r.Notif.UseService(notifServiceName)
 		return func(err error, logMsg, stdout, stderr string) {
@@ -192,7 +267,7 @@ func (r *Runner) runCommandRemotely(jobName string) (error, string, string) {
 
 	timeout := r.getTimeoutForJob(jobName)
 	cmd := r.Config.Jobs[jobName].Command
-	// FIXME: seperate the stderr and stdout
+	// TODO: seperate the stderr and stdout
 	var combinedOutput []byte
 	if timeout == 0 {
 		combinedOutput, err = client.Run(cmd)
