@@ -61,6 +61,17 @@ func (r *Runner) ScheduleJobs() error {
 	return nil
 }
 
+// start the scheduled jobs. Should be called after `ScheduleJobs`
+// is non-blocking
+func (r *Runner) RunJobs() error {
+	r.Scheduler.Start()
+	return nil
+}
+
+func (r *Runner) Shutdown() error {
+	return r.Scheduler.Shutdown()
+}
+
 func (r *Runner) JobFunc(jobName string, test bool) func() {
 	failStrategy := r.Config.Jobs[jobName].FailStrategy
 	if !test && failStrategy.Retry != nil {

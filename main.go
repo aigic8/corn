@@ -1,8 +1,12 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"os"
+	"os/signal"
 	"path"
+	"syscall"
 	"time"
 	_ "time/tzdata"
 
@@ -80,5 +84,18 @@ func main() {
 		if err := r.ScheduleJobs(); err != nil {
 			panic(fmt.Errorf("failed to schedule jobs: %w", err))
 		}
+
+		if err := r.RunJobs(); err != nil {
+			panic(fmt.Errorf("failed to run jobs: %w", err))
+		}
+		defer r.Shutdown()
+
+		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+		defer stop()
+
+		fmt.Println("Running... Press Ctrl-C to stop.")
+
+		<-ctx.Done()
 	}
+
 }

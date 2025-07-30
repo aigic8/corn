@@ -51,3 +51,4 @@ Corn is a cron job tool with built in logging and notification system.
 - [ ] Add comments to config options
 - [ ] Test retry count
 - [ ] Test multiline commands using SSH
+- [ ] Reomve Windows builds from Github releases
