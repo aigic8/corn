@@ -1,0 +1,13 @@
+[Unit]
+Description=Corn cron job manager
+After=network.target
+
+[Service]
+ExecStart=$$INSTALL_BIN
+Restart=always
+User=$$USERNAME
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

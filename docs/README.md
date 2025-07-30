@@ -15,8 +15,8 @@ Corn is a cron job tool with built in logging and notification system.
 - **Final Features Before Beta**
   - [x] Add timeout to the config and use the time out in the settings
   - [x] Add remote servers SSH support for cron jobs
-  - [ ] Systemd file for running the app in background and starting on power on
-  - [ ] Add Installation script
+  - [x] Systemd file for running the app in background and starting on power on
+  - [x] Add Installation script
   - [x] Add Failure strategies (from [jobber](https://github.com/dshearer/jobber))
     - `retry:` retry either instantly or with timing between them
     - `halt:` remove the job from schedules until it is fixed and notify the user
@@ -51,4 +51,6 @@ Corn is a cron job tool with built in logging and notification system.
 - [ ] Add comments to config options
 - [ ] Test retry count
 - [ ] Test multiline commands using SSH
-- [ ] Reomve Windows builds from Github releases
+- [x] Remove Windows builds from Github releases
+- [ ] Add Docker compose and volume for sqlite db
+- [ ] Choose and add License

@@ -4,6 +4,7 @@ RUN mkdir /app
 
 # copying files and dirs
 ADD ./lib /app/lib
+ADD ./internal /app/internal
 COPY ./go.mod /app/go.mod
 COPY ./go.sum /app/go.sum
 COPY ./main.go /app/main.go
