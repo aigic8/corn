@@ -12,7 +12,6 @@ jobs:
 notifiers:
   base:
     telegram:
-      - token: "7083807682:AAGA2VMNi5Jg7tHvvKH9QX6bLLhSZArGq-Y"
+      - token: "TELEGRAM_TOKEN"
         receivers:
-          - 5103455773
-
+          - 123456
