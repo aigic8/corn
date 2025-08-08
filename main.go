@@ -72,6 +72,9 @@ func main() {
 	if err != nil {
 		panic(fmt.Sprintf("creating new db with address '%s': %w", c.DbAddr, err))
 	}
+	if err = db.Init(); err != nil {
+		panic(fmt.Sprintf("initializing db with address '%s': %w", c.DbAddr, err))
+	}
 
 	r, err := runner.NewRunner(c, logger, db)
 	if err != nil {

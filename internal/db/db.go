@@ -17,7 +17,7 @@ type (
 	Db struct {
 		DbAddr string
 		c      *DbClient
-		Retry  *models.RetryModel
+		Retry  *models.RunModel
 	}
 )
 
@@ -27,11 +27,11 @@ func NewDb(dbAddr string) (*Db, error) {
 		return nil, fmt.Errorf("connecting to db: %w", err)
 	}
 
-	retryModel := models.NewRetryModel(c)
+	retryModel := models.NewRunModel(c)
 
 	return &Db{DbAddr: dbAddr, c: c, Retry: retryModel}, nil
 }
 
-func (db *Db) Init() {
-	db.c.AutoMigrate(&schema.Retry{})
+func (db *Db) Init() error {
+	return db.c.AutoMigrate(&schema.Run{})
 }

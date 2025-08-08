@@ -1,0 +1,18 @@
+disableNotifications: false
+defaultNotifier: base
+jobs:
+  testJob:
+    schedules:
+      - "@TEST_TIME"
+    command: kjflkadsjflkd kjkjdkfj
+    onlyLogOnFail: false
+    failStrategy:
+      retry:
+        maxRetries: 4
+notifiers:
+  base:
+    telegram:
+      - token: "7083807682:AAGA2VMNi5Jg7tHvvKH9QX6bLLhSZArGq-Y"
+        receivers:
+          - 5103455773
+
