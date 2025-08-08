@@ -28,7 +28,7 @@ def main():
 
     try:
         process = subprocess.Popen(
-            "corn",
+            ["corn", "run"],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,

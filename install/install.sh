@@ -9,11 +9,12 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 BLUE='\033[1;34m'
 YELLOW='\033[1;33m'
+BOLD='\033[1m'
 NC='\033[0m' # No Color
 
-PREF="$BLUE➤$NC"
+PREF="$BLUE■$NC"
 ERR_PREF="❌$RED ERROR:$NC"
-SUCCESS_PREF="$GREEN➤$NC"
+SUCCESS_PREF="$GREEN■$NC"
 
 # Config 
 OWNER="aigic8"
@@ -57,7 +58,7 @@ if [ -z "$ASSET_URL" ]; then
   exit 1
 fi
 
-echo -e "$PREF Downloading from: $BLUE$ASSET_URL$NC"
+echo -e "$PREF Downloading from: $BOLD$ASSET_URL$NC"
 cd "$TMP_DIR"
 curl -sLO "$ASSET_URL"
 
@@ -81,21 +82,24 @@ mv "$BINARY_NAME" "$INSTALL_DIR/"
 
 # TODO: add option to choose the installation path
 
-echo -e "✅ Installed $BINARY_NAME to $BLUE$INSTALL_DIR$NC"
-echo -e "\t$SUCCESS_PREF Make sure installation dir is in your shell path (edit your .bashrc, .zshrc, etc...) $BLUE(REQUIRED)$NC"
+echo -e "\t$SUCCESS_PREF Installed $BINARY_NAME to $BOLD$INSTALL_DIR$NC"
 
 # empty new line
 echo 
 
 # Add Systemd Service
 # TODO: add option to choose the user (now it is the current user)
-echo -e "$PREF Adding systemd service to $BLUE$SERVICE_PATH$NC $YELLOW(requires root access)$NC"
+echo -e "$PREF Adding Systemd service to $BLUE$SERVICE_PATH$NC $YELLOW(requires root access)$NC"
 curl -s https://raw.githubusercontent.com/aigic8/corn/refs/heads/main/install/corn.service.template \
   | sed -e "s|\$\$INSTALL_BIN|$INSTALL_DIR/$BINARY_NAME|" \
         -e "s|\$\$USERNAME|$USER|" \
 	| sudo tee $SERVICE_PATH > /dev/null
 
-echo "✅ Added Systemd service. Here is how you can use it:"
+echo -e "\t$SUCCESS_PREF Added Systemd service $BOLD(corn.service)$NC"
+
+echo 
+echo -e "$PREF To finalize the installation do the following:"
+echo -e "\t$SUCCESS_PREF Make sure installation dir is in your shell path (edit your .bashrc, .zshrc, etc...) $BLUE(REQUIRED)$NC"
 echo -e "\t$SUCCESS_PREF Start the service using: sudo systemctl start corn.service $BLUE(REQUIRED)$NC"
 echo -e "\t$SUCCESS_PREF Enable the service using (the service will start on reboot): sudo systemctl enable corn.service $YELLOW(OPTIONAL)$NC"
 echo -e "\t$SUCCESS_PREF View the status of the service: sudo systemctl status corn.service"

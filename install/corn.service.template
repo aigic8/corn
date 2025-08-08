@@ -3,7 +3,7 @@ Description=Corn cron job manager
 After=network.target
 
 [Service]
-ExecStart=$$INSTALL_BIN
+ExecStart=$$INSTALL_BIN run
 Restart=always
 User=$$USERNAME
 StandardOutput=journal

@@ -1,4 +1,5 @@
-FROM golang:alpine
+# Build stage
+FROM golang:alpine AS builder
 
 RUN mkdir /app
 
@@ -13,4 +14,11 @@ COPY ./main.go /app/main.go
 WORKDIR /app
 RUN go build -o /app/corn /app/main.go
 
-CMD [ "/app/corn" ]
+# Final stage
+FROM alpine:latest
+
+RUN mkdir /app
+
+COPY --from=builder /app/corn /app/corn
+
+CMD [ "/app/corn", "run" ]

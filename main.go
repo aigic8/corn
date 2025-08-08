@@ -22,10 +22,16 @@ import (
 type (
 	Args struct {
 		Test *TestCommand `arg:"subcommand" help:"test a job"`
+		Run  *RunCommand  `arg:"subcommand" help:"start running"`
 	}
 
 	TestCommand struct {
 		Job string `arg:"-j,--job,required" help:"name of the job to test"`
+		Dev bool   `arg:"-d,--dev" help:"runs in dev mode with logging into the terminal instead of log file"`
+	}
+
+	RunCommand struct {
+		Dev bool `arg:"-d,--dev" help:"runs in dev mode with logging into the terminal instead of log file"`
 	}
 )
 
@@ -44,7 +50,16 @@ func main() {
 		panic(fmt.Sprintf("parsing and validating config from '%s': %s", configPath, err.Error()))
 	}
 
-	logger, err := logs.NewLogger(c.LogsDir)
+	isDev := false
+	if args.Run != nil {
+		isDev = args.Run.Dev
+	} else if args.Test != nil {
+		isDev = args.Test.Dev
+	} else {
+		panic("no command was used (test,run, ...)")
+	}
+
+	logger, err := logs.NewLogger(c.LogsDir, isDev)
 	if err != nil {
 		panic(fmt.Sprintf("creating a new logger: %s", err.Error()))
 	}
