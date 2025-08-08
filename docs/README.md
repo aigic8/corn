@@ -7,8 +7,8 @@
 
 <h4 align="center">A modern cronjob runner with logging, notification and remote worker support. Written in Go.</h4>
 <p align="center">
-  <a href="https://github.com/aigic8/corn/workflows/docker-pusher.yaml"><img alt="Docker build & Push" src="https://github.com/aigic8/corn/workflows/docker-pusher.yaml/badge.svg"></a>
-  <a href="https://github.com/aigic8/corn/workflows/go-releaser.yaml"><img alt="Go Releaser" src="https://github.com/aigic8/corn/workflows/go-releaser.yaml/badge.svg"></a>
+  <a href="https://github.com/aigic8/corn/actions/workflows/docker-pusher.yaml"><img alt="Docker build & Push" src="https://github.com/aigic8/corn/actions/workflows/docker-pusher.yaml/badge.svg"></a>
+  <a href="https://github.com/aigic8/corn/actions/workflows/go-releaser.yaml"><img alt="Go Releaser" src="https://github.com/aigic8/corn/actions/workflows/go-releaser.yaml/badge.svg"></a>
 </p>
 <br>
 
