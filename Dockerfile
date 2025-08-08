@@ -12,7 +12,7 @@ COPY ./main.go /app/main.go
 
 # building
 WORKDIR /app
-RUN go build -o /app/corn /app/main.go
+RUN CGO_ENABLED=1 go build -o /app/corn /app/main.go
 
 # Final stage
 FROM alpine:latest
