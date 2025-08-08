@@ -1,4 +1,4 @@
-# Build stage
+##### Build Stage #####
 FROM golang:alpine AS builder
 
 RUN mkdir /app
@@ -10,11 +10,16 @@ COPY ./go.mod /app/go.mod
 COPY ./go.sum /app/go.sum
 COPY ./main.go /app/main.go
 
+# adding required libraries (required for CGO enabled builds)
+RUN apk add --no-cache build-base git
+
 # building
 WORKDIR /app
-RUN CGO_ENABLED=1 go build -o /app/corn /app/main.go
+# sqlite requires CGO enabled
+ENV CGO_ENABLED=1
+RUN go build -o /app/corn /app/main.go
 
-# Final stage
+##### Final Stage #####
 FROM alpine:latest
 
 RUN mkdir /app
