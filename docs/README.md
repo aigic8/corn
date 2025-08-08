@@ -36,10 +36,13 @@ Corn is a cron job tool with built in logging and notification system.
 
 ### Enhancements
 
+- [ ] Choose and add License
+- [ ] Add Docker compose and volume for sqlite db
+- [ ] Test multiline commands using SSH
 - [ ] Add Testing
-- [ ] Check why [jobber](https://github.com/dshearer/jobber) uses ipc for long running jobs and what is it
 - [ ] Add logging to terminal (instead of writing to file) for testing jobs (with a flag) and in config
   - Pretty logging should also be an option for this case
+- [ ] Check why [jobber](https://github.com/dshearer/jobber) uses ipc for long running jobs and what is it
 - [ ] Add support for multi-step docker image
 - [ ] Add docs and clean the github page
 - [ ] Test Discord Notification system
@@ -49,8 +52,5 @@ Corn is a cron job tool with built in logging and notification system.
 - [ ] In config get all the paths relative to the config file
 - [ ] Add an CLI option to validate the config file
 - [ ] Add comments to config options
-- [ ] Test retry count
-- [ ] Test multiline commands using SSH
+- [x] Test retry count
 - [x] Remove Windows builds from Github releases
-- [ ] Add Docker compose and volume for sqlite db
-- [ ] Choose and add License
