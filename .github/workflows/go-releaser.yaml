@@ -1,5 +1,5 @@
 # source: https://github.com/goreleaser/goreleaser-action
-name: goreleaser
+name: Go Releaser
 
 on:
   push:

@@ -1,4 +1,4 @@
-name: docker-pusher
+name: Docker Build & Push
 permissions:
   contents: read
   packages: write
