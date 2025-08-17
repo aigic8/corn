@@ -84,6 +84,7 @@ func NewDiscordNotifier(o *DiscordNotifierOpts) (Notifier, error) {
 	} else {
 		return notifier, errors.New("no authentication method (bot token or oAuth2 token) is provided for discord")
 	}
+	notifier.AddReceivers(o.ChanelIDs...)
 
 	return notifier, nil
 }
