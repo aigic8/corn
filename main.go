@@ -19,6 +19,8 @@ import (
 	"github.com/go-playground/validator/v10"
 )
 
+const DEFAULT_DB_TIMEOUT = 10 * time.Second
+
 type (
 	Args struct {
 		Test *TestCommand `arg:"subcommand" help:"test a job"`
@@ -83,7 +85,7 @@ func main() {
 	}
 	logger.L.Debug().Msgf("created directory '%s' for db", dbDir)
 
-	db, err := db.NewDb(c.DbAddr)
+	db, err := db.NewDb(c.DbAddr, DEFAULT_DB_TIMEOUT)
 	if err != nil {
 		panic(fmt.Sprintf("creating new db with address '%s': %w", c.DbAddr, err))
 	}

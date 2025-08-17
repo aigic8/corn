@@ -76,7 +76,7 @@ func (r *Runner) Shutdown() error {
 func (r *Runner) JobFunc(jobName string, test bool) func() {
 	failStrategy := r.Config.Jobs[jobName].FailStrategy
 	if !test && failStrategy.Retry != nil {
-		runId, err := r.db.Retry.Create(jobName)
+		runId, err := r.db.Run.Create(jobName)
 		if err != nil {
 			r.L.L.Err(fmt.Errorf("failed creating retries for job '%s'. Falling back to normal job", jobName)).Msg("failed creating retries")
 			return r.normalJobFunc(jobName)
@@ -118,7 +118,7 @@ func (r *Runner) retryJobFunc(jobName string, retry *config.FailStrategyRetry, r
 		notifierName := r.getNotifierForJob(jobName, true)
 		notifFailure := r.failureLogNotifier(jobName, &jobLogger, notifierName)
 
-		runItem, err := r.db.Retry.Get(runId)
+		runItem, err := r.db.Run.Get(runId)
 		retriesCount := runItem.Retries
 		if err != nil && !errors.Is(err, db.ErrNotExist) {
 			notifFailure(fmt.Errorf("getting number of retries for job '%s': %w", jobName, err), "could not get number of retries", "", "")
@@ -128,7 +128,7 @@ func (r *Runner) retryJobFunc(jobName string, retry *config.FailStrategyRetry, r
 		if retriesCount >= retry.MaxRetries {
 			return
 		} else {
-			if err = r.db.Retry.UpdateRunRetries(runId, retriesCount+1); err != nil {
+			if err = r.db.Run.UpdateRunRetries(runId, retriesCount+1); err != nil {
 				notifFailure(fmt.Errorf("updating retry count for job '%s': %w", jobName, err), "could not set retry count", "", "")
 				return
 			}
@@ -144,7 +144,7 @@ func (r *Runner) retryJobFunc(jobName string, retry *config.FailStrategyRetry, r
 					gocron.NewTask(r.retryJobFunc(jobName, retry, runId)),
 				)
 			} else {
-				if err = r.db.Retry.UpdateRunRetries(runId, 0); err != nil {
+				if err = r.db.Run.UpdateRunRetries(runId, 0); err != nil {
 					notifFailure(fmt.Errorf("updating retry count for job '%s': %w", jobName, err), "could not set retry count", "", "")
 					return
 				}

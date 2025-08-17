@@ -2,6 +2,7 @@ package db
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/aigic8/corn/internal/db/models"
 	"github.com/aigic8/corn/internal/db/schema"
@@ -15,21 +16,22 @@ var ErrNotExist = gorm.ErrRecordNotFound
 
 type (
 	Db struct {
-		DbAddr string
-		c      *DbClient
-		Retry  *models.RunModel
+		DbAddr  string
+		Timeout time.Duration
+		c       *DbClient
+		Run     *models.RunModel
 	}
 )
 
-func NewDb(dbAddr string) (*Db, error) {
+func NewDb(dbAddr string, defaultTimeout time.Duration) (*Db, error) {
 	c, err := gorm.Open(sqlite.Open(dbAddr), &gorm.Config{})
 	if err != nil {
 		return nil, fmt.Errorf("connecting to db: %w", err)
 	}
 
-	retryModel := models.NewRunModel(c)
+	runModel := models.NewRunModel(c, defaultTimeout)
 
-	return &Db{DbAddr: dbAddr, c: c, Retry: retryModel}, nil
+	return &Db{DbAddr: dbAddr, c: c, Run: runModel, Timeout: defaultTimeout}, nil
 }
 
 func (db *Db) Init() error {

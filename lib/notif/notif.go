@@ -53,7 +53,7 @@ func (n *Notif) UseService(service string) func(subject, text string) error {
 //	generalized function to send a message
 //
 // it probably should not be used directly
-// but only internally in `useService`
+// but only internally in `UseService`
 func (n *Notif) Send(service, subject, text string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), n.Timeout)
 	defer cancel()

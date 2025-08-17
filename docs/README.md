@@ -5,7 +5,7 @@
   <br>
 </h1>
 
-<h4 align="center">A modern cronjob runner with logging, notification and remote worker support. Written in Go.</h4>
+<h4 align="center">A modern cronjob manager with logging, notification and remote worker support.</h4>
 <p align="center">
   <a href="https://github.com/aigic8/corn/actions/workflows/docker-pusher.yaml"><img alt="Docker build & Push" src="https://github.com/aigic8/corn/actions/workflows/docker-pusher.yaml/badge.svg"></a>
   <a href="https://github.com/aigic8/corn/actions/workflows/go-releaser.yaml"><img alt="Go Releaser" src="https://github.com/aigic8/corn/actions/workflows/go-releaser.yaml/badge.svg"></a>
@@ -15,7 +15,7 @@
 ## Features
 
 - **Structured Logging:** Execution logs of both tasks and agent itself are stored in files in json format.
-- **Agentless Remote Execution:** Jobs can be be run on remote servers without installing corn on them. (through `SSH`)
+- **Agentless Remote Execution:** Jobs can be be run on remote servers without installing corn on them. (through `ssh`)
 - **Notification:** Notifications are support on `Telegram` and `Discord`
 - **Fail Strategies:** Jobs can retried when failed
 
@@ -148,8 +148,8 @@ A single job can be executed with the following command:
 corn test -j jobName
 ```
 
-You can also pass the `--dev` option to printing the logs to stdout (shell) instead of pushing them to log files.
+You can also pass the `--dev` (or `-d`) option to printing the logs to stdout (shell) instead of pushing them to log files.
 
 ```sh
-corn test -j jobName -d
+corn test -j jobName --dev
 ```
