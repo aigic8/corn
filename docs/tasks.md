@@ -41,7 +41,7 @@
 - [ ] Check why [jobber](https://github.com/dshearer/jobber) uses ipc for long running jobs and what is it
 - [x] Add support for multi-step docker image
 - [x] Add docs and clean the github page
-- [ ] Test Discord Notification system
+- [x] Test Discord Notification system
 - [x] Fix the bug with quoted args in function `SeperateArgsFromCommand`
 - [x] Notify the user on failure before command running
 - [ ] Add Emojis to notifications
