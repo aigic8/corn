@@ -23,7 +23,7 @@ There are three main objects that can be defined:
 - `remotes`: Servers to run the jobs on through ssh
 - `notifiers`: Notification services used
 
-For working examples check the [examples page](../examples).
+For working examples check the [examples page](../examples/index).
 
 ## Generic Options
 
@@ -148,4 +148,3 @@ notifiers:
         - CHANNEL_ID_1
         - CHANNEL_ID_2
 ```
-
