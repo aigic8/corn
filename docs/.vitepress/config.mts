@@ -2,6 +2,7 @@ import { defineConfig } from "vitepress";
 
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
+  base: "/corn/",
   title: "Corn",
   description: "A Modern Cron Manager",
   themeConfig: {
